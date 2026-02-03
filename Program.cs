@@ -1,5 +1,11 @@
-﻿// See https://aka.ms/new-console-template for more information
-Console.WriteLine("Hello, World!");
+﻿/*
+ Student Number: S10274277E
+ Student Name: Huang Enyu 
+ Partner Name: - (Solo)
+*/
+
+
+
 
 
 
