@@ -4,13 +4,11 @@
  Partner Name: (Solo)
 */
 
-/*Basic Feature 1*/
+//Basic Feature 1
 
-/*First Basic Feature Commit*/
+//Basic Feature 1
 
 
-Console.WriteLine("Testing Basic Feature Again");
-Console.WriteLine("Testing Basic Feature Again");
 
 
 
