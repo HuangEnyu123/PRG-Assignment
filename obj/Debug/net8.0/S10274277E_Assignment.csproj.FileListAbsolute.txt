@@ -1,0 +1,19 @@
+C:\Users\Huang Enyu\Downloads\PRG Assignment 2\bin\Debug\net8.0\S10274277E_Assignment.exe
+C:\Users\Huang Enyu\Downloads\PRG Assignment 2\bin\Debug\net8.0\customers.csv
+C:\Users\Huang Enyu\Downloads\PRG Assignment 2\bin\Debug\net8.0\fooditems - Copy.csv
+C:\Users\Huang Enyu\Downloads\PRG Assignment 2\bin\Debug\net8.0\orders - Copy.csv
+C:\Users\Huang Enyu\Downloads\PRG Assignment 2\bin\Debug\net8.0\restaurants.csv
+C:\Users\Huang Enyu\Downloads\PRG Assignment 2\bin\Debug\net8.0\S10274277E_Assignment.deps.json
+C:\Users\Huang Enyu\Downloads\PRG Assignment 2\bin\Debug\net8.0\S10274277E_Assignment.runtimeconfig.json
+C:\Users\Huang Enyu\Downloads\PRG Assignment 2\bin\Debug\net8.0\S10274277E_Assignment.dll
+C:\Users\Huang Enyu\Downloads\PRG Assignment 2\bin\Debug\net8.0\S10274277E_Assignment.pdb
+C:\Users\Huang Enyu\Downloads\PRG Assignment 2\obj\Debug\net8.0\S10274277E_Assignment.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\Huang Enyu\Downloads\PRG Assignment 2\obj\Debug\net8.0\S10274277E_Assignment.AssemblyInfoInputs.cache
+C:\Users\Huang Enyu\Downloads\PRG Assignment 2\obj\Debug\net8.0\S10274277E_Assignment.AssemblyInfo.cs
+C:\Users\Huang Enyu\Downloads\PRG Assignment 2\obj\Debug\net8.0\S10274277E_Assignment.csproj.CoreCompileInputs.cache
+C:\Users\Huang Enyu\Downloads\PRG Assignment 2\obj\Debug\net8.0\S10274277E_Assignment.sourcelink.json
+C:\Users\Huang Enyu\Downloads\PRG Assignment 2\obj\Debug\net8.0\S10274277E_Assignment.dll
+C:\Users\Huang Enyu\Downloads\PRG Assignment 2\obj\Debug\net8.0\refint\S10274277E_Assignment.dll
+C:\Users\Huang Enyu\Downloads\PRG Assignment 2\obj\Debug\net8.0\S10274277E_Assignment.pdb
+C:\Users\Huang Enyu\Downloads\PRG Assignment 2\obj\Debug\net8.0\S10274277E_Assignment.genruntimeconfig.cache
+C:\Users\Huang Enyu\Downloads\PRG Assignment 2\obj\Debug\net8.0\ref\S10274277E_Assignment.dll
