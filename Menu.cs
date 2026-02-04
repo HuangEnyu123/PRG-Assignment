@@ -30,9 +30,9 @@ namespace S10274277E_Assignment
             return foodItems.Remove(foodItem);
         }
 
-        public List<FoodItem> GetFoodItems()
+        public IReadOnlyList<FoodItem> GetFoodItems()
         {
-            return foodItems;
+            return foodItems.AsReadOnly();
         }
 
         public void DisplayFoodItems()

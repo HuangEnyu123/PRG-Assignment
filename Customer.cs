@@ -29,9 +29,9 @@ namespace S10274277E_Assignment
             return orders.Remove(order);
         }
 
-        public List<Order> GetOrders()
+        public IReadOnlyList<Order>GetOrders()
         {
-            return orders;
+            return orders.AsReadOnly();
         }
 
         public void DisplayAllOrders()

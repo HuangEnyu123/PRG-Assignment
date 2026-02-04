@@ -36,6 +36,15 @@ namespace S10274277E_Assignment
             return menus.Remove(menu);
         }
 
+        public void AddSpecialOffer(SpecialOffer offer)
+        {
+            specialOffers.Add(offer);
+        }
+
+        public bool RemoveSpecialOffer(SpecialOffer offer)
+        {
+            return specialOffers.Remove(offer);
+        }
         public void EnqueueOrder(Order order)
         {
             orderQueue.Enqueue(order);
