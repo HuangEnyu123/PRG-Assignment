@@ -13,11 +13,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Users\\Huang Enyu\\Downloads\\PRG Assignment 2\\S10274277E_Assignment.csproj",
+      "projectUniqueName": "C:\\Users\\Huang Enyu\\Downloads\\Huang Enyu_S10274277E_PRG Assignment 2 (1)\\PRG Assignment 2\\S10274277E_Assignment.csproj",
       "projectName": "S10274277E_Assignment",
-      "projectPath": "C:\\Users\\Huang Enyu\\Downloads\\PRG Assignment 2\\S10274277E_Assignment.csproj",
+      "projectPath": "C:\\Users\\Huang Enyu\\Downloads\\Huang Enyu_S10274277E_PRG Assignment 2 (1)\\PRG Assignment 2\\S10274277E_Assignment.csproj",
       "packagesPath": "C:\\Users\\Huang Enyu\\.nuget\\packages\\",
-      "outputPath": "C:\\Users\\Huang Enyu\\Downloads\\PRG Assignment 2\\obj\\",
+      "outputPath": "C:\\Users\\Huang Enyu\\Downloads\\Huang Enyu_S10274277E_PRG Assignment 2 (1)\\PRG Assignment 2\\obj\\",
       "projectStyle": "PackageReference",
       "configFilePaths": [
         "C:\\Users\\Huang Enyu\\AppData\\Roaming\\NuGet\\NuGet.Config",
