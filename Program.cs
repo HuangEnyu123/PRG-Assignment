@@ -1,4 +1,5 @@
-﻿/* Student Number: S10274277E
+﻿
+/* Student Number: S10274277E
    Student Name:   Huang Enyu (Solo)
    Partner Name:   -
 */
@@ -66,4 +67,110 @@ while (true)
             CreateNewOrder(ordersById, restaurants, menusByRestaurant, customersByEmail, ordersFile);
             break;
     }
+}
+
+int LoadRestaurants(Dictionary<string, Restaurant> restaurants,
+                    Dictionary<string, Menu> menusByRestaurant,
+                    string filePath)
+{
+    if (string.IsNullOrWhiteSpace(filePath) || !File.Exists(filePath))
+    {
+        Console.WriteLine("ERROR: restaurants.csv not found.");
+        return 0;
+    }
+
+    int loaded = 0;
+
+    try
+    {
+        using StreamReader sr = new(filePath);
+        _ = sr.ReadLine(); // header
+
+        while (!sr.EndOfStream)
+        {
+            string line = sr.ReadLine();
+            if (string.IsNullOrWhiteSpace(line)) continue;
+
+            string[] p = SplitCsvLine(line);
+            if (p.Length < 3) continue;
+
+            string restId = p[0].Trim();
+            string restName = p[1].Trim();
+            string restEmail = p[2].Trim();
+
+            if (string.IsNullOrWhiteSpace(restId) ||
+                string.IsNullOrWhiteSpace(restName) ||
+                string.IsNullOrWhiteSpace(restEmail))
+                continue;
+
+            if (restaurants.ContainsKey(restId)) continue;
+
+            Restaurant r = new Restaurant(restId, restName, restEmail);
+            restaurants[restId] = r;
+
+            // Default menu per restaurant
+            Menu m = new Menu($"M_{restId}", "Main Menu");
+            r.AddMenu(m);
+            menusByRestaurant[restId] = m;
+
+            loaded++;
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"ERROR reading restaurants file: {ex.Message}");
+    }
+
+    return loaded;
+}
+
+int LoadFoodItems(Dictionary<string, Restaurant> restaurants,
+                  Dictionary<string, Menu> menusByRestaurant,
+                  string filePath)
+{
+    if (string.IsNullOrWhiteSpace(filePath) || !File.Exists(filePath))
+    {
+        Console.WriteLine("ERROR: fooditems file not found.");
+        return 0;
+    }
+
+    int loaded = 0;
+
+    try
+    {
+        using StreamReader sr = new(filePath);
+        _ = sr.ReadLine(); // header
+
+        while (!sr.EndOfStream)
+        {
+            string line = sr.ReadLine();
+            if (string.IsNullOrWhiteSpace(line)) continue;
+
+            string[] p = SplitCsvLine(line);
+            if (p.Length < 4) continue;
+
+            string restId = p[0].Trim();
+            string itemName = p[1].Trim();
+            string itemDesc = p[2].Trim();
+            string priceStr = p[3].Trim();
+
+            if (!restaurants.ContainsKey(restId) || !menusByRestaurant.ContainsKey(restId))
+                continue;
+
+            if (string.IsNullOrWhiteSpace(itemName) || string.IsNullOrWhiteSpace(itemDesc))
+                continue;
+
+            if (!double.TryParse(priceStr, NumberStyles.Any, CultureInfo.InvariantCulture, out double price) || price < 0)
+                continue;
+
+            menusByRestaurant[restId].AddFoodItem(new FoodItem(itemName, itemDesc, price));
+            loaded++;
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"ERROR reading food items file: {ex.Message}");
+    }
+
+    return loaded;
 }
