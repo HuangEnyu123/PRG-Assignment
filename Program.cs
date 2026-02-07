@@ -174,3 +174,128 @@ int LoadFoodItems(Dictionary<string, Restaurant> restaurants,
 
     return loaded;
 }
+
+int LoadCustomers(Dictionary<string, Customer> customersByEmail, string filePath)
+{
+    if (string.IsNullOrWhiteSpace(filePath) || !File.Exists(filePath))
+    {
+        Console.WriteLine("ERROR: customers.csv not found.");
+        return 0;
+    }
+
+    int loaded = 0;
+
+    try
+    {
+        using StreamReader sr = new(filePath);
+        _ = sr.ReadLine(); // header
+
+        while (!sr.EndOfStream)
+        {
+            string line = sr.ReadLine();
+            if (string.IsNullOrWhiteSpace(line)) continue;
+
+            string[] p = SplitCsvLine(line);
+            if (p.Length < 2) continue;
+
+            string name = p[0].Trim();
+            string email = p[1].Trim();
+
+            if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(email)) continue;
+            if (!IsValidEmail(email)) continue;
+
+            if (customersByEmail.ContainsKey(email)) continue;
+
+            customersByEmail[email] = new Customer(email, name);
+            loaded++;
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"ERROR reading customers file: {ex.Message}");
+    }
+
+    return loaded;
+}
+
+int LoadOrders(Dictionary<int, Order> ordersById,
+               Dictionary<string, Restaurant> restaurants,
+               Dictionary<string, Menu> menusByRestaurant,
+               Dictionary<string, Customer> customersByEmail,
+               string filePath)
+{
+    if (string.IsNullOrWhiteSpace(filePath) || !File.Exists(filePath))
+    {
+        Console.WriteLine("ERROR: orders file not found.");
+        return 0;
+    }
+
+    int loaded = 0;
+
+    try
+    {
+        using StreamReader sr = new(filePath);
+        _ = sr.ReadLine(); // header:
+      
+        while (!sr.EndOfStream)
+        {
+            string line = sr.ReadLine();
+            if (string.IsNullOrWhiteSpace(line)) continue;
+
+            string[] p = SplitCsvLine(line);
+            if (p.Length < 10) continue;
+
+            if (!int.TryParse(p[0].Trim(), out int orderId)) continue;
+
+            string custEmail = p[1].Trim();
+            string restId = p[2].Trim();
+            string deliveryDateStr = p[3].Trim();
+            string deliveryTimeStr = p[4].Trim(); 
+            string address = p[5].Trim();
+            string createdStr = p[6].Trim();     
+            string totalStr = p[7].Trim();
+            string status = p[8].Trim();
+            string itemsStr = p[9].Trim();
+
+            if (ordersById.ContainsKey(orderId)) continue;
+            if (!customersByEmail.ContainsKey(custEmail)) continue;
+            if (!restaurants.ContainsKey(restId) || !menusByRestaurant.ContainsKey(restId)) continue;
+            if (string.IsNullOrWhiteSpace(address)) continue;
+
+            if (!DateTime.TryParseExact(deliveryDateStr, "dd/MM/yyyy", CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime dDate))
+                continue;
+
+            if (!DateTime.TryParseExact(deliveryTimeStr, "HH:mm", CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime dTime))
+                continue;
+
+            DateTime deliveryDt = dDate.Date.Add(dTime.TimeOfDay);
+
+            if (!DateTime.TryParseExact(createdStr, "dd/MM/yyyy HH:mm", CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime createdDt))
+                createdDt = DateTime.Now;
+
+            Order o = new Order(orderId, custEmail, restId, createdDt, deliveryDt, address);
+            o.OrderStatus = string.IsNullOrWhiteSpace(status) ? "Pending" : status;
+
+            BuildOrderedItemsFromString(o, menusByRestaurant[restId], itemsStr);
+
+            if (o.GetOrderedFoodItems().Count == 0 &&
+                double.TryParse(totalStr, NumberStyles.Any, CultureInfo.InvariantCulture, out double fileTotal) &&
+                fileTotal >= 0)
+            {
+                
+            }
+
+            restaurants[restId].EnqueueOrder(o);
+            customersByEmail[custEmail].AddOrder(o);
+
+            ordersById[orderId] = o;
+            loaded++;
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"ERROR reading orders file: {ex.Message}");
+    }
+
+    return loaded;
+}
