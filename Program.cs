@@ -84,7 +84,7 @@ int LoadRestaurants(Dictionary<string, Restaurant> restaurants,
     try
     {
         using StreamReader sr = new(filePath);
-        _ = sr.ReadLine(); // header
+        _ = sr.ReadLine(); 
 
         while (!sr.EndOfStream)
         {
@@ -108,7 +108,6 @@ int LoadRestaurants(Dictionary<string, Restaurant> restaurants,
             Restaurant r = new Restaurant(restId, restName, restEmail);
             restaurants[restId] = r;
 
-            // Default menu per restaurant
             Menu m = new Menu($"M_{restId}", "Main Menu");
             r.AddMenu(m);
             menusByRestaurant[restId] = m;
@@ -139,7 +138,7 @@ int LoadFoodItems(Dictionary<string, Restaurant> restaurants,
     try
     {
         using StreamReader sr = new(filePath);
-        _ = sr.ReadLine(); // header
+        _ = sr.ReadLine(); 
 
         while (!sr.EndOfStream)
         {
@@ -188,7 +187,7 @@ int LoadCustomers(Dictionary<string, Customer> customersByEmail, string filePath
     try
     {
         using StreamReader sr = new(filePath);
-        _ = sr.ReadLine(); // header
+        _ = sr.ReadLine(); 
 
         while (!sr.EndOfStream)
         {
@@ -235,7 +234,7 @@ int LoadOrders(Dictionary<int, Order> ordersById,
     try
     {
         using StreamReader sr = new(filePath);
-        _ = sr.ReadLine(); // header:
+        _ = sr.ReadLine(); 
       
         while (!sr.EndOfStream)
         {
@@ -507,5 +506,158 @@ void CreateNewOrder(Dictionary<int, Order> ordersById,
     AppendOrderToCsv(ordersFilePath, order);
 
     Console.WriteLine($"Order {order.OrderId} created successfully! Status: {order.OrderStatus}");
+}
+
+string PickFirstExisting(params string[] candidates)
+{
+    foreach (var f in candidates)
+        if (File.Exists(f)) return f;
+
+    return candidates.Length > 0 ? candidates[0] : "";
+}
+
+void BuildOrderedItemsFromString(Order order, Menu menu, string itemsStr)
+{
+    if (string.IsNullOrWhiteSpace(itemsStr)) return;
+
+    var lookup = menu.GetFoodItems()
+                     .GroupBy(x => x.ItemName, StringComparer.OrdinalIgnoreCase)
+                     .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
+    string[] parts = itemsStr.Split('|', StringSplitOptions.RemoveEmptyEntries);
+
+    foreach (string raw in parts)
+    {
+        string s = raw.Trim();
+        int comma = s.LastIndexOf(',');
+        if (comma <= 0) continue;
+
+        string name = s.Substring(0, comma).Trim();
+        string qtyStr = s.Substring(comma + 1).Trim();
+
+        if (!int.TryParse(qtyStr, out int qty) || qty <= 0) continue;
+        if (!lookup.TryGetValue(name, out FoodItem fi)) continue; 
+
+        order.AddOrderedFoodItem(new OrderedFoodItem(fi, qty));
+    }
+}
+
+void AppendOrderToCsv(string filePath, Order order)
+{
+    string deliveryDate = order.DeliveryDateTime.ToString("dd/MM/yyyy");
+    string deliveryTime = order.DeliveryDateTime.ToString("HH:mm");
+    string created = order.OrderDateTime.ToString("dd/MM/yyyy HH:mm");
+    string total = order.OrderTotal.ToString(CultureInfo.InvariantCulture);
+
+    string itemsStr = string.Join("|",
+        order.GetOrderedFoodItems().Select(x => $"{x.FoodItem.ItemName}, {x.QtyOrdered}"));
+
+    bool needHeader = !File.Exists(filePath) || new FileInfo(filePath).Length == 0;
+
+    using StreamWriter sw = new(filePath, append: true);
+
+    if (needHeader)
+        sw.WriteLine("OrderId,CustomerEmail,RestaurantId,DeliveryDate,DeliveryTime,DeliveryAddress,CreatedDateTime,TotalAmount,Status,Items");
+
+    sw.WriteLine($"{order.OrderId},{EscapeCsv(order.CustomerEmail)},{EscapeCsv(order.RestaurantId)},{deliveryDate},{deliveryTime},{EscapeCsv(order.DeliveryAddress)},{created},{total},{EscapeCsv(order.OrderStatus)},{EscapeCsv(itemsStr)}");
+}
+
+string EscapeCsv(string s)
+{
+    s ??= "";
+    if (s.Contains(',') || s.Contains('"') || s.Contains('\n') || s.Contains('\r'))
+        return $"\"{s.Replace("\"", "\"\"")}\"";
+    return s;
+}
+
+string[] SplitCsvLine(string line)
+{
+    List<string> fields = new();
+    bool inQuotes = false;
+    StringBuilder cur = new();
+
+    for (int i = 0; i < line.Length; i++)
+    {
+        char ch = line[i];
+
+        if (ch == '"')
+        {
+            if (inQuotes && i + 1 < line.Length && line[i + 1] == '"')
+            {
+                cur.Append('"');
+                i++;
+            }
+            else
+            {
+                inQuotes = !inQuotes;
+            }
+        }
+        else if (ch == ',' && !inQuotes)
+        {
+            fields.Add(cur.ToString());
+            cur.Clear();
+        }
+        else
+        {
+            cur.Append(ch);
+        }
+    }
+
+    fields.Add(cur.ToString());
+    return fields.ToArray();
+}
+
+bool IsValidEmail(string email)
+{
+    if (string.IsNullOrWhiteSpace(email)) return false;
+    return email.Contains('@') && email.Contains('.') && !email.Contains(' ');
+}
+
+string ReadNonEmpty(string prompt)
+{
+    while (true)
+    {
+        Console.Write(prompt);
+        string s = (Console.ReadLine() ?? "").Trim();
+        if (!string.IsNullOrWhiteSpace(s)) return s;
+        Console.WriteLine("Input cannot be empty.");
+    }
+}
+
+string ReadYesNo(string prompt)
+{
+    while (true)
+    {
+        Console.Write(prompt);
+        string s = (Console.ReadLine() ?? "").Trim().ToUpperInvariant();
+        if (s == "Y" || s == "N") return s;
+        Console.WriteLine("Please enter Y or N.");
+    }
+}
+
+int ReadInt()
+{
+    while (true)
+    {
+        string s = (Console.ReadLine() ?? "").Trim();
+        if (int.TryParse(s, out int v)) return v;
+        Console.Write("Invalid number. Try again: ");
+    }
+}
+
+int ReadIntRange(int min, int max)
+{
+    while (true)
+    {
+        string s = (Console.ReadLine() ?? "").Trim();
+        if (int.TryParse(s, out int v) && v >= min && v <= max) return v;
+        Console.Write($"Enter a number between {min} and {max}: ");
+    }
+}
+
+string TrimTo(string s, int maxLen)
+{
+    if (string.IsNullOrEmpty(s)) return s;
+    return s.Length <= maxLen ? s : s.Substring(0, maxLen - 1) + "…";
 }
 
