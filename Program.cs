@@ -299,3 +299,213 @@ int LoadOrders(Dictionary<int, Order> ordersById,
 
     return loaded;
 }
+
+void ListRestaurantsAndMenuItems(Dictionary<string, Restaurant> restaurants)
+{
+    if (restaurants.Count == 0)
+    {
+        Console.WriteLine("No restaurants loaded.");
+        return;
+    }
+
+    Console.WriteLine("\nAll Restaurants and Menu Items");
+    Console.WriteLine("==============================");
+
+    foreach (Restaurant r in restaurants.Values.OrderBy(x => x.RestaurantId))
+    {
+        Console.WriteLine($"\nRestaurant: {r.RestaurantName} ({r.RestaurantId})");
+        r.DisplayMenu();
+    }
+}
+
+void ListAllOrders(Dictionary<int, Order> ordersById,
+                   Dictionary<string, Customer> customersByEmail,
+                   Dictionary<string, Restaurant> restaurants)
+{
+    if (ordersById.Count == 0)
+    {
+        Console.WriteLine("No orders loaded.");
+        return;
+    }
+
+    Console.WriteLine("\nAll Orders");
+    Console.WriteLine("==========");
+
+    Console.WriteLine($"{"Order ID",-8} {"Customer",-18} {"Restaurant",-18} {"Delivery Date/Time",-18} {"Amount",-10} {"Status",-12}");
+    Console.WriteLine(new string('-', 90));
+
+    foreach (Order o in ordersById.Values.OrderBy(x => x.OrderId))
+    {
+        string custName = customersByEmail.TryGetValue(o.CustomerEmail, out var c) ? c.CustomerName : o.CustomerEmail;
+        string restName = restaurants.TryGetValue(o.RestaurantId, out var r) ? r.RestaurantName : o.RestaurantId;
+
+        Console.WriteLine($"{o.OrderId,-8} {TrimTo(custName, 18),-18} {TrimTo(restName, 18),-18} {o.DeliveryDateTime:dd/MM/yyyy HH:mm,-18} ${o.OrderTotal,-9:F2} {o.OrderStatus,-12}");
+    }
+}
+
+void CreateNewOrder(Dictionary<int, Order> ordersById,
+                    Dictionary<string, Restaurant> restaurants,
+                    Dictionary<string, Menu> menusByRestaurant,
+                    Dictionary<string, Customer> customersByEmail,
+                    string ordersFilePath)
+{
+    Console.WriteLine("\nCreate New Order");
+    Console.WriteLine("================");
+
+    string custEmail;
+    while (true)
+    {
+        custEmail = ReadNonEmpty("Enter Customer Email: ");
+        if (!IsValidEmail(custEmail))
+        {
+            Console.WriteLine("Invalid email format.");
+            continue;
+        }
+        if (!customersByEmail.ContainsKey(custEmail))
+        {
+            Console.WriteLine("Customer not found.");
+            continue;
+        }
+        break;
+    }
+
+    string restId;
+    while (true)
+    {
+        restId = ReadNonEmpty("Enter Restaurant ID: ").ToUpperInvariant();
+        if (!restaurants.ContainsKey(restId))
+        {
+            Console.WriteLine("Restaurant not found.");
+            continue;
+        }
+        if (!menusByRestaurant.ContainsKey(restId))
+        {
+            Console.WriteLine("Menu not found for this restaurant.");
+            return;
+        }
+        break;
+    }
+
+    DateTime deliveryDate;
+    while (true)
+    {
+        string d = ReadNonEmpty("Enter Delivery Date (dd/mm/yyyy): ");
+        if (!DateTime.TryParseExact(d, "dd/MM/yyyy", CultureInfo.InvariantCulture, DateTimeStyles.None, out deliveryDate))
+        {
+            Console.WriteLine("Invalid date. Use dd/mm/yyyy.");
+            continue;
+        }
+        break;
+    }
+
+    DateTime deliveryTime;
+    while (true)
+    {
+        string t = ReadNonEmpty("Enter Delivery Time (hh:mm): ");
+        if (!DateTime.TryParseExact(t, "HH:mm", CultureInfo.InvariantCulture, DateTimeStyles.None, out deliveryTime))
+        {
+            Console.WriteLine("Invalid time. Use hh:mm (24-hour).");
+            continue;
+        }
+        break;
+    }
+
+    DateTime deliveryDt = deliveryDate.Date.Add(deliveryTime.TimeOfDay);
+    if (deliveryDt < DateTime.Now)
+    {
+        Console.WriteLine("Delivery date/time cannot be in the past. Order cancelled.");
+        return;
+    }
+
+    string address = ReadNonEmpty("Enter Delivery Address: ");
+
+    int newOrderId = (ordersById.Count == 0) ? 1001 : ordersById.Keys.Max() + 1;
+
+    Order order = new Order(newOrderId, custEmail, restId, DateTime.Now, deliveryDt, address);
+
+    Menu menu = menusByRestaurant[restId];
+    List<FoodItem> items = menu.GetFoodItems().ToList();
+
+    if (items.Count == 0)
+    {
+        Console.WriteLine("This restaurant has no food items. Order cancelled.");
+        return;
+    }
+
+    Console.WriteLine("Available Food Items:");
+    for (int i = 0; i < items.Count; i++)
+        Console.WriteLine($"{i + 1}. {items[i].ItemName} - ${items[i].ItemPrice:F2}");
+
+    while (true)
+    {
+        Console.Write("Enter item number (0 to finish): ");
+        int itemNo = ReadInt();
+
+        if (itemNo == 0) break;
+
+        if (itemNo < 1 || itemNo > items.Count)
+        {
+            Console.WriteLine("Invalid item number.");
+            continue;
+        }
+
+        Console.Write("Enter quantity: ");
+        int qty = ReadInt();
+        if (qty <= 0)
+        {
+            Console.WriteLine("Quantity must be at least 1.");
+            continue;
+        }
+
+        FoodItem chosen = items[itemNo - 1];
+        order.AddOrderedFoodItem(new OrderedFoodItem(chosen, qty));
+    }
+
+    if (order.GetOrderedFoodItems().Count == 0)
+    {
+        Console.WriteLine("No items selected. Order cancelled.");
+        return;
+    }
+
+    string sr = ReadYesNo("Add special request? [Y/N]: ");
+    if (sr == "Y")
+        order.SpecialRequest = ReadNonEmpty("Enter special request: ");
+
+    double itemsTotal = order.GetOrderedFoodItems().Sum(x => x.SubTotal);
+    order.CalculateOrderTotal();
+    Console.WriteLine($"Order Total: ${itemsTotal:F2} + ${Order.DeliveryFee:F2} (delivery) = ${order.OrderTotal:F2}");
+
+    string pay = ReadYesNo("Proceed to payment? [Y/N]: ");
+    if (pay == "N")
+    {
+        Console.WriteLine("Payment not done. Order cancelled (not saved).");
+        return;
+    }
+
+    string method;
+    while (true)
+    {
+        Console.WriteLine("Payment method:");
+        Console.Write("[CC] Credit Card / [PP] PayPal / [CD] Cash on Delivery: ");
+        method = (Console.ReadLine() ?? "").Trim().ToUpperInvariant();
+
+        if (method is "CC" or "PP" or "CD") break;
+        Console.WriteLine("Invalid payment method.");
+    }
+
+    order.PaymentMethod = method;
+    order.IsPaid = true;
+    order.OrderStatus = "Pending";
+
+
+    restaurants[restId].EnqueueOrder(order);
+    customersByEmail[custEmail].AddOrder(order);
+
+    ordersById[order.OrderId] = order;
+
+
+    AppendOrderToCsv(ordersFilePath, order);
+
+    Console.WriteLine($"Order {order.OrderId} created successfully! Status: {order.OrderStatus}");
+}
+
