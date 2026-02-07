@@ -1,15 +1,17 @@
 ﻿
-/* Student Number: S10274277E
-   Student Name:   Huang Enyu (Solo)
-   Partner Name:   -
-*/
-
 using S10274277E_Assignment;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Text;
+using System.Linq;
+
+/* Student Number: S10274277E
+   Student Name:   Huang Enyu (Solo)
+   Partner Name:   -
+*/
+
 
 Dictionary<string, Restaurant> restaurants = new();
 Dictionary<string, Menu> menusByRestaurant = new();
@@ -41,10 +43,11 @@ while (true)
     Console.WriteLine("1. List all restaurants and menu items");
     Console.WriteLine("2. List all orders");
     Console.WriteLine("3. Create a new order");
+    Console.WriteLine("4. Bulk process pending orders (today)");
     Console.WriteLine("0. Exit");
     Console.Write("Enter your choice: ");
 
-    int choice = ReadIntRange(0, 3);
+    int choice = ReadIntRange(0, 4);
 
     if (choice == 0)
     {
@@ -65,6 +68,10 @@ while (true)
 
         case 3:
             CreateNewOrder(ordersById, restaurants, menusByRestaurant, customersByEmail, ordersFile);
+            break;
+
+        case 4:
+            BulkProcessPendingOrdersForToday(ordersById, ordersFile);
             break;
     }
 }
@@ -506,6 +513,101 @@ void CreateNewOrder(Dictionary<int, Order> ordersById,
     AppendOrderToCsv(ordersFilePath, order);
 
     Console.WriteLine($"Order {order.OrderId} created successfully! Status: {order.OrderStatus}");
+}
+
+// ============================================================
+// ADVANCED FEATURE (a): Bulk processing of Pending orders for TODAY
+// ============================================================
+void BulkProcessPendingOrdersForToday(Dictionary<int, Order> ordersById, string ordersFilePath)
+{
+    Console.WriteLine("\nBulk Processing Pending Orders (Today)");
+    Console.WriteLine("=====================================");
+
+    if (ordersById == null || ordersById.Count == 0)
+    {
+        Console.WriteLine("No orders loaded.");
+        return;
+    }
+
+    DateTime now = DateTime.Now;
+    DateTime today = now.Date;
+
+    // STEP 1: Find all orders with status "Pending" AND delivery date = today
+    List<Order> pendingToday = ordersById.Values
+        .Where(o => o != null
+            && o.OrderStatus.Equals("Pending", StringComparison.OrdinalIgnoreCase)
+            && o.DeliveryDateTime.Date == today)
+        .OrderBy(o => o.DeliveryDateTime)
+        .ToList();
+
+    // STEP 2: Display total number of Pending orders (today)
+    int totalPendingOrders = pendingToday.Count;
+    Console.WriteLine($"Total number of PENDING orders for today ({today:dd/MM/yyyy}): {totalPendingOrders}");
+
+    int processed = 0, preparing = 0, rejected = 0;
+
+    // STEP 3: Process each Pending order
+    foreach (Order o in pendingToday)
+    {
+        TimeSpan timeToDelivery = o.DeliveryDateTime - now;
+
+        if (timeToDelivery < TimeSpan.FromHours(1))
+        {
+            o.OrderStatus = "Rejected";
+            rejected++;
+        }
+        else
+        {
+            o.OrderStatus = "Preparing";
+            preparing++;
+        }
+
+        processed++;
+    }
+
+    // STEP 4: Summary statistics
+    Console.WriteLine("\nSummary Statistics");
+    Console.WriteLine("------------------");
+    Console.WriteLine($"Orders processed: {processed}");
+    Console.WriteLine($"Preparing orders: {preparing}");
+    Console.WriteLine($"Rejected orders : {rejected}");
+
+    // STEP 5: Percentage processed vs ALL orders
+    double percentage = ordersById.Count == 0 ? 0 : (processed * 100.0 / ordersById.Count);
+    Console.WriteLine($"Auto-processed percentage (processed / all orders): {percentage:F2}%");
+
+    // STEP 6: Save changes back to CSV (Grade A good practice)
+    SaveAllOrdersToCsv(ordersFilePath, ordersById);
+    Console.WriteLine("\nUpdated order statuses saved to CSV.");
+}
+
+// ============================================================
+// Helper: Rewrite entire Orders CSV with updated statuses
+// ============================================================
+void SaveAllOrdersToCsv(string filePath, Dictionary<int, Order> ordersById)
+{
+    if (string.IsNullOrWhiteSpace(filePath))
+    {
+        Console.WriteLine("WARNING: orders file path is empty. Status changes NOT saved.");
+        return;
+    }
+
+    using StreamWriter sw = new(filePath, append: false);
+
+    sw.WriteLine("OrderId,CustomerEmail,RestaurantId,DeliveryDate,DeliveryTime,DeliveryAddress,CreatedDateTime,TotalAmount,Status,Items");
+
+    foreach (Order o in ordersById.Values.Where(x => x != null).OrderBy(x => x.OrderId))
+    {
+        string deliveryDate = o.DeliveryDateTime.ToString("dd/MM/yyyy");
+        string deliveryTime = o.DeliveryDateTime.ToString("HH:mm");
+        string created = o.OrderDateTime.ToString("dd/MM/yyyy HH:mm");
+        string total = o.OrderTotal.ToString(CultureInfo.InvariantCulture);
+
+        string itemsStr = string.Join("|",
+            o.GetOrderedFoodItems().Select(x => $"{x.FoodItem.ItemName}, {x.QtyOrdered}"));
+
+        sw.WriteLine($"{o.OrderId},{EscapeCsv(o.CustomerEmail)},{EscapeCsv(o.RestaurantId)},{deliveryDate},{deliveryTime},{EscapeCsv(o.DeliveryAddress)},{created},{total},{EscapeCsv(o.OrderStatus)},{EscapeCsv(itemsStr)}");
+    }
 }
 
 string PickFirstExisting(params string[] candidates)
