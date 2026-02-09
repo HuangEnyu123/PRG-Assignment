@@ -26,6 +26,11 @@ namespace S10274277E_Assignment
         private readonly List<OrderedFoodItem> orderedFoodItems;
         public double OrderTotal { get; private set; }
 
+        public string AppliedOfferCode { get; private set; } = "";
+        public double DiscountPercentApplied { get; private set; } = 0;
+        public bool FreeDeliveryApplied { get; private set; } = false;
+
+
         public Order(int orderId, string customerEmail, string restaurantId,
                      DateTime orderDateTime, DateTime deliveryDateTime, string deliveryAddress)
         {
@@ -66,15 +71,50 @@ namespace S10274277E_Assignment
 
         public double CalculateOrderTotal()
         {
-            OrderTotal = 0;
+            double itemsSubTotal = 0;
 
             foreach (var item in orderedFoodItems)
-                OrderTotal += item.CalculateSubtotal();
+                itemsSubTotal += item.CalculateSubtotal();
+      
+            double discountedItems = itemsSubTotal;
+            if (DiscountPercentApplied > 0)
+                discountedItems = itemsSubTotal * (1.0 - DiscountPercentApplied / 100.0);
 
-            if (orderedFoodItems.Count > 0)
-                OrderTotal += DeliveryFee;
+            double deliveryFee = (orderedFoodItems.Count > 0 && !FreeDeliveryApplied)
+                ? DeliveryFee
+                : 0.0;
 
+            OrderTotal = Math.Round(discountedItems + deliveryFee, 2);
             return OrderTotal;
+        }
+
+        public void ApplySpecialOffer(SpecialOffer offer)
+        {
+ 
+            if (offer == null)
+            {
+                AppliedOfferCode = "";
+                DiscountPercentApplied = 0;
+                FreeDeliveryApplied = false;
+                CalculateOrderTotal();
+                return;
+            }
+
+            AppliedOfferCode = offer.OfferCode;
+            DiscountPercentApplied = offer.Discount;
+            FreeDeliveryApplied = false;
+
+            double itemsSubTotal = orderedFoodItems.Sum(x => x.CalculateSubtotal());
+
+            if (offer.Discount <= 0 &&
+                offer.OfferDesc != null &&
+                offer.OfferDesc.Contains("Free Delivery", StringComparison.OrdinalIgnoreCase) &&
+                itemsSubTotal >= 30.0)
+            {
+                FreeDeliveryApplied = true;
+            }
+
+            CalculateOrderTotal();
         }
 
         public void SetTotalFromFile(double total)

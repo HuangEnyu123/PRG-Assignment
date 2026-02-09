@@ -41,6 +41,11 @@ namespace S10274277E_Assignment
             specialOffers.Add(offer);
         }
 
+        public IReadOnlyList<SpecialOffer> GetSpecialOffers()
+        {
+            return specialOffers.AsReadOnly();
+        }
+
         public bool RemoveSpecialOffer(SpecialOffer offer)
         {
             return specialOffers.Remove(offer);

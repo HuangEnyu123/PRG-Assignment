@@ -12,7 +12,6 @@ using System.Linq;
    Partner Name:   -
 */
 
-
 Dictionary<string, Restaurant> restaurants = new();
 Dictionary<string, Menu> menusByRestaurant = new();
 Dictionary<string, Customer> customersByEmail = new();
@@ -25,8 +24,12 @@ string restaurantsFile = PickFirstExisting("restaurants.csv");
 string foodItemsFile = PickFirstExisting("fooditems.csv", "fooditems - Copy.csv");
 string customersFile = PickFirstExisting("customers.csv");
 string ordersFile = PickFirstExisting("orders.csv", "orders - Copy.csv");
+string offersFile = PickFirstExisting("specialoffers.csv");
 
 int rCount = LoadRestaurants(restaurants, menusByRestaurant, restaurantsFile);
+int sCount = LoadSpecialOffers(restaurants, offersFile);
+if (File.Exists(offersFile))
+    Console.WriteLine($"{sCount} special offers loaded!");
 int fCount = LoadFoodItems(restaurants, menusByRestaurant, foodItemsFile);
 
 int cCount = LoadCustomers(customersByEmail, customersFile);
@@ -95,7 +98,7 @@ int LoadRestaurants(Dictionary<string, Restaurant> restaurants,
 
         while (!sr.EndOfStream)
         {
-            string line = sr.ReadLine();
+            string line = sr.ReadLine() ?? "";
             if (string.IsNullOrWhiteSpace(line)) continue;
 
             string[] p = SplitCsvLine(line);
@@ -149,7 +152,7 @@ int LoadFoodItems(Dictionary<string, Restaurant> restaurants,
 
         while (!sr.EndOfStream)
         {
-            string line = sr.ReadLine();
+            string line = sr.ReadLine() ?? "";
             if (string.IsNullOrWhiteSpace(line)) continue;
 
             string[] p = SplitCsvLine(line);
@@ -198,7 +201,7 @@ int LoadCustomers(Dictionary<string, Customer> customersByEmail, string filePath
 
         while (!sr.EndOfStream)
         {
-            string line = sr.ReadLine();
+            string line = sr.ReadLine() ?? "";
             if (string.IsNullOrWhiteSpace(line)) continue;
 
             string[] p = SplitCsvLine(line);
@@ -245,7 +248,7 @@ int LoadOrders(Dictionary<int, Order> ordersById,
       
         while (!sr.EndOfStream)
         {
-            string line = sr.ReadLine();
+            string line = sr.ReadLine() ?? "";
             if (string.IsNullOrWhiteSpace(line)) continue;
 
             string[] p = SplitCsvLine(line);
@@ -303,6 +306,55 @@ int LoadOrders(Dictionary<int, Order> ordersById,
     {
         Console.WriteLine($"ERROR reading orders file: {ex.Message}");
     }
+
+    return loaded;
+
+}
+int LoadSpecialOffers(Dictionary<string, Restaurant> restaurants, string filePath)
+{
+    if (string.IsNullOrWhiteSpace(filePath) || !File.Exists(filePath))
+        return 0;
+
+
+    var byName = restaurants.Values.ToDictionary(
+        r => r.RestaurantName.Trim(),
+        r => r,
+        StringComparer.OrdinalIgnoreCase
+    );
+
+    int loaded = 0;
+
+    try
+    {
+        using StreamReader sr = new(filePath);
+        _ = sr.ReadLine(); // header
+
+        while (!sr.EndOfStream)
+        {
+            string line = sr.ReadLine() ?? "";
+            if (string.IsNullOrWhiteSpace(line)) continue;
+
+            string[] p = SplitCsvLine(line);
+            if (p.Length < 4) continue;
+
+            string restName = p[0].Trim();  
+            string code = p[1].Trim();
+            string desc = p[2].Trim();
+            string discStr = p[3].Trim();
+
+            if (!byName.TryGetValue(restName, out var rest))
+                continue;
+
+            double discount = 0;
+            if (discStr != "-" &&
+                !double.TryParse(discStr, NumberStyles.Any, CultureInfo.InvariantCulture, out discount))
+                discount = 0;
+
+            rest.AddSpecialOffer(new SpecialOffer(code, desc, discount));
+            loaded++;
+        }
+    }
+    catch { }
 
     return loaded;
 }
@@ -524,12 +576,69 @@ void CreateNewOrder(Dictionary<int, Order> ordersById,
     if (sr == "Y")
         order.SpecialRequest = ReadNonEmpty("Enter special request: ");
 
-    order.CalculateOrderTotal();
-    double itemsTotal = order.OrderTotal - Order.DeliveryFee;
+    Restaurant chosenRestaurant = restaurants[restId];
+    var offers = chosenRestaurant.GetSpecialOffers();
 
-    Console.WriteLine(
-      $"Order Total: ${itemsTotal:F2} + ${Order.DeliveryFee:F2} (delivery) = ${order.OrderTotal:F2}"
-    );
+    if (offers.Count > 0)
+    {
+        string useOffer = ReadYesNo("Apply special offer? [Y/N]: ");
+        if (useOffer == "Y")
+        {
+            Console.WriteLine("Available Special Offers:");
+            foreach (var off in offers)
+            {
+                string discText = off.Discount > 0
+                    ? $"{off.Discount:0.##}% off"
+                    : "No % discount";
+
+                Console.WriteLine($"- {off.OfferCode}: {off.OfferDesc} ({discText})");
+            }
+
+            while (true)
+            {
+                string code = ReadNonEmpty("Enter Offer Code: ").ToUpperInvariant();
+
+                var selected = offers.FirstOrDefault(x =>
+                    x.OfferCode.Equals(code, StringComparison.OrdinalIgnoreCase));
+
+                if (selected == null)
+                {
+                    Console.WriteLine("Invalid offer code.");
+                    continue;
+                }
+
+                order.ApplySpecialOffer(selected);
+                Console.WriteLine($"Offer applied: {selected.OfferCode}");
+                break;
+            }
+        }
+    }
+
+
+    order.CalculateOrderTotal();
+
+    double rawItemsTotal = order.GetOrderedFoodItems().Sum(x => x.SubTotal);
+    double deliveryFee = order.FreeDeliveryApplied ? 0.0 : Order.DeliveryFee;
+    double discountedItemsTotal = order.OrderTotal - deliveryFee;
+    double discountAmount = rawItemsTotal * (order.DiscountPercentApplied / 100.0);
+
+    if (order.DiscountPercentApplied > 0)
+    {
+        Console.WriteLine(
+            $"Order Total: ${rawItemsTotal:F2} - ${discountAmount:F2} ({order.DiscountPercentApplied:0.##}%) = " +
+            $"${discountedItemsTotal:F2} + ${deliveryFee:F2} (delivery) = ${order.OrderTotal:F2}"
+        );
+    }
+    else
+    {
+        Console.WriteLine(
+            $"Order Total: ${rawItemsTotal:F2} + ${deliveryFee:F2} (delivery) = ${order.OrderTotal:F2}"
+        );
+    }
+
+
+
+
 
     string pay = ReadYesNo("Proceed to payment? [Y/N]: ");
     if (pay == "N")
@@ -699,7 +808,7 @@ void BuildOrderedItemsFromString(Order order, Menu menu, string itemsStr)
         string qtyStr = s.Substring(comma + 1).Trim();
 
         if (!int.TryParse(qtyStr, out int qty) || qty <= 0) continue;
-        if (!lookup.TryGetValue(name, out FoodItem fi)) continue; 
+        if (!lookup.TryGetValue(name, out var fi)) continue; 
 
         order.AddOrderedFoodItem(new OrderedFoodItem(fi, qty));
     }
