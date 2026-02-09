@@ -287,8 +287,9 @@ int LoadOrders(Dictionary<int, Order> ordersById,
             if (o.GetOrderedFoodItems().Count == 0 &&
                 double.TryParse(totalStr, NumberStyles.Any, CultureInfo.InvariantCulture, out double fileTotal) &&
                 fileTotal >= 0)
+
             {
-                
+                o.SetTotalFromFile(fileTotal);
             }
 
             restaurants[restId].EnqueueOrder(o);
@@ -345,7 +346,8 @@ void ListAllOrders(Dictionary<int, Order> ordersById,
         string custName = customersByEmail.TryGetValue(o.CustomerEmail, out var c) ? c.CustomerName : o.CustomerEmail;
         string restName = restaurants.TryGetValue(o.RestaurantId, out var r) ? r.RestaurantName : o.RestaurantId;
 
-        Console.WriteLine($"{o.OrderId,-8} {TrimTo(custName, 18),-18} {TrimTo(restName, 18),-18} {o.DeliveryDateTime:dd/MM/yyyy HH:mm,-18} ${o.OrderTotal,-9:F2} {o.OrderStatus,-12}");
+        Console.WriteLine($"{o.OrderId,-8} {TrimTo(custName, 18),-18} {TrimTo(restName, 18),-18} {o.DeliveryDateTime.ToString("dd/MM/yyyy HH:mm"),-18} ${o.OrderTotal,-9:F2} {o.OrderStatus,-12}");
+
     }
 }
 

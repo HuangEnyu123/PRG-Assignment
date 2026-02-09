@@ -77,6 +77,13 @@ namespace S10274277E_Assignment
             return OrderTotal;
         }
 
+        public void SetTotalFromFile(double total)
+        {
+            if (total < 0) total = 0;
+            OrderTotal = total;
+        }
+
+
         public void DisplayOrderedFoodItems()
         {
             foreach (var item in orderedFoodItems)
