@@ -71,7 +71,7 @@ while (true)
             break;
 
         case 4:
-            BulkProcessPendingOrdersForToday(ordersById, ordersFile);
+            BulkProcessPendingOrdersForToday(restaurants,ordersById, ordersFile);
             break;
     }
 }
@@ -338,16 +338,61 @@ void ListAllOrders(Dictionary<int, Order> ordersById,
     Console.WriteLine("\nAll Orders");
     Console.WriteLine("==========");
 
-    Console.WriteLine($"{"Order ID",-8} {"Customer",-18} {"Restaurant",-18} {"Delivery Date/Time",-18} {"Amount",-10} {"Status",-12}");
-    Console.WriteLine(new string('-', 90));
+    
+    const int W_ID = 10;
+    const int W_CUST = 12;
+    const int W_REST = 14;
+    const int W_DT = 20;      
+    const int W_AMT = 8;      
+    const int W_STATUS = 10;
+
+ 
+    Console.WriteLine(
+        $"{"Order ID",-W_ID} " +
+        $"{"Customer",-W_CUST} " +
+        $"{"Restaurant",-W_REST} " +
+        $"{"Delivery Date/Time",-W_DT} " +
+        $"{"Amount",-W_AMT} " +
+        $"{"Status",-W_STATUS}"
+    );
+
+  
+    Console.WriteLine(
+        $"{new string('-', W_ID),-W_ID} " +
+        $"{new string('-', W_CUST),-W_CUST} " +
+        $"{new string('-', W_REST),-W_REST} " +
+        $"{new string('-', W_DT),-W_DT} " +
+        $"{new string('-', W_AMT),-W_AMT} " +
+        $"{new string('-', W_STATUS),-W_STATUS}"
+    );
 
     foreach (Order o in ordersById.Values.OrderBy(x => x.OrderId))
     {
-        string custName = customersByEmail.TryGetValue(o.CustomerEmail, out var c) ? c.CustomerName : o.CustomerEmail;
-        string restName = restaurants.TryGetValue(o.RestaurantId, out var r) ? r.RestaurantName : o.RestaurantId;
+        string custName = customersByEmail.TryGetValue(o.CustomerEmail, out var c)
+            ? c.CustomerName
+            : o.CustomerEmail;
 
-        Console.WriteLine($"{o.OrderId,-8} {TrimTo(custName, 18),-18} {TrimTo(restName, 18),-18} {o.DeliveryDateTime.ToString("dd/MM/yyyy HH:mm"),-18} ${o.OrderTotal,-9:F2} {o.OrderStatus,-12}");
+        string restName = restaurants.TryGetValue(o.RestaurantId, out var r)
+            ? r.RestaurantName
+            : o.RestaurantId;
 
+        string deliveryDT = o.DeliveryDateTime.ToString("dd/MM/yyyy HH:mm");
+
+      
+        string amount = "$" + o.OrderTotal.ToString("0.00");
+
+
+        custName = TrimTo(custName, W_CUST);
+        restName = TrimTo(restName, W_REST);
+
+        Console.WriteLine(
+            $"{o.OrderId,-W_ID} " +
+            $"{custName,-W_CUST} " +
+            $"{restName,-W_REST} " +
+            $"{deliveryDT,-W_DT} " +
+            $"{amount,-W_AMT} " +
+            $"{o.OrderStatus,-W_STATUS}"
+        );
     }
 }
 
@@ -479,9 +524,12 @@ void CreateNewOrder(Dictionary<int, Order> ordersById,
     if (sr == "Y")
         order.SpecialRequest = ReadNonEmpty("Enter special request: ");
 
-    double itemsTotal = order.GetOrderedFoodItems().Sum(x => x.SubTotal);
     order.CalculateOrderTotal();
-    Console.WriteLine($"Order Total: ${itemsTotal:F2} + ${Order.DeliveryFee:F2} (delivery) = ${order.OrderTotal:F2}");
+    double itemsTotal = order.OrderTotal - Order.DeliveryFee;
+
+    Console.WriteLine(
+      $"Order Total: ${itemsTotal:F2} + ${Order.DeliveryFee:F2} (delivery) = ${order.OrderTotal:F2}"
+    );
 
     string pay = ReadYesNo("Proceed to payment? [Y/N]: ");
     if (pay == "N")
@@ -517,13 +565,22 @@ void CreateNewOrder(Dictionary<int, Order> ordersById,
     Console.WriteLine($"Order {order.OrderId} created successfully! Status: {order.OrderStatus}");
 }
 
-// ============================================================
+
 // ADVANCED FEATURE (a): Bulk processing of Pending orders for TODAY
-// ============================================================
-void BulkProcessPendingOrdersForToday(Dictionary<int, Order> ordersById, string ordersFilePath)
+
+void BulkProcessPendingOrdersForToday(
+    Dictionary<string, Restaurant> restaurants,
+    Dictionary<int, Order> ordersById,
+    string ordersFilePath)
 {
     Console.WriteLine("\nBulk Processing Pending Orders (Today)");
     Console.WriteLine("=====================================");
+
+    if (restaurants == null || restaurants.Count == 0)
+    {
+        Console.WriteLine("No restaurants loaded.");
+        return;
+    }
 
     if (ordersById == null || ordersById.Count == 0)
     {
@@ -534,22 +591,30 @@ void BulkProcessPendingOrdersForToday(Dictionary<int, Order> ordersById, string 
     DateTime now = DateTime.Now;
     DateTime today = now.Date;
 
-    // STEP 1: Find all orders with status "Pending" AND delivery date = today
-    List<Order> pendingToday = ordersById.Values
-        .Where(o => o != null
-            && o.OrderStatus.Equals("Pending", StringComparison.OrdinalIgnoreCase)
-            && o.DeliveryDateTime.Date == today)
-        .OrderBy(o => o.DeliveryDateTime)
-        .ToList();
+    List<Order> pendingToday = new();
 
-    // STEP 2: Display total number of Pending orders (today)
-    int totalPendingOrders = pendingToday.Count;
-    Console.WriteLine($"Total number of PENDING orders for today ({today:dd/MM/yyyy}): {totalPendingOrders}");
+    foreach (Restaurant r in restaurants.Values)
+    {
+        Queue<Order> q = r.GetOrderQueue();
+        if (q == null || q.Count == 0) continue;
+
+        foreach (Order o in q)
+        {
+            if (o == null) continue;
+
+            if (o.OrderStatus.Equals("Pending", StringComparison.OrdinalIgnoreCase) &&
+                o.DeliveryDateTime.Date == today)
+            {
+                pendingToday.Add(o);
+            }
+        }
+    }
+
+    Console.WriteLine($"Total number of PENDING orders for today ({today:dd/MM/yyyy}): {pendingToday.Count}");
 
     int processed = 0, preparing = 0, rejected = 0;
 
-    // STEP 3: Process each Pending order
-    foreach (Order o in pendingToday)
+    foreach (Order o in pendingToday.OrderBy(x => x.DeliveryDateTime))
     {
         TimeSpan timeToDelivery = o.DeliveryDateTime - now;
 
@@ -567,25 +632,19 @@ void BulkProcessPendingOrdersForToday(Dictionary<int, Order> ordersById, string 
         processed++;
     }
 
-    // STEP 4: Summary statistics
     Console.WriteLine("\nSummary Statistics");
     Console.WriteLine("------------------");
     Console.WriteLine($"Orders processed: {processed}");
     Console.WriteLine($"Preparing orders: {preparing}");
     Console.WriteLine($"Rejected orders : {rejected}");
 
-    // STEP 5: Percentage processed vs ALL orders
     double percentage = ordersById.Count == 0 ? 0 : (processed * 100.0 / ordersById.Count);
     Console.WriteLine($"Auto-processed percentage (processed / all orders): {percentage:F2}%");
 
-    // STEP 6: Save changes back to CSV (Grade A good practice)
     SaveAllOrdersToCsv(ordersFilePath, ordersById);
     Console.WriteLine("\nUpdated order statuses saved to CSV.");
 }
 
-// ============================================================
-// Helper: Rewrite entire Orders CSV with updated statuses
-// ============================================================
 void SaveAllOrdersToCsv(string filePath, Dictionary<int, Order> ordersById)
 {
     if (string.IsNullOrWhiteSpace(filePath))
