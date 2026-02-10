@@ -561,8 +561,11 @@ void CreateNewOrder(Dictionary<int, Order> ordersById,
     //  Step 4: Delivery time input 
     DateTime deliveryTime;
     while (true)
-    {
-        string t = ReadNonEmpty("Enter Delivery Time (hh:mm): ");
+    {            
+        string t = ReadNonEmpty("Enter Delivery Time (hh:mm): ");  // Delivery time is entered and processed in 24-hour format (HH:mm).
+                                                                   // No AM/PM or manual +12 hour adjustment is required.
+        
+        
         if (!DateTime.TryParseExact(t, "HH:mm", CultureInfo.InvariantCulture, DateTimeStyles.None, out deliveryTime))
         {
             Console.WriteLine("Invalid time. Use hh:mm (24-hour).");

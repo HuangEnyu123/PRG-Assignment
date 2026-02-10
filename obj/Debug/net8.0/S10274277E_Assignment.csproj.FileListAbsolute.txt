@@ -56,3 +56,4 @@ C:\Users\Huang Enyu\Downloads\Huang Enyu_S10274277E_PRG Assignment 2 (1)\PRG Ass
 C:\Users\Huang Enyu\Downloads\Huang Enyu_S10274277E_PRG Assignment 2 (1)\PRG Assignment 2\obj\Debug\net8.0\S10274277E_Assignment.genruntimeconfig.cache
 C:\Users\Huang Enyu\Downloads\Huang Enyu_S10274277E_PRG Assignment 2 (1)\PRG Assignment 2\obj\Debug\net8.0\ref\S10274277E_Assignment.dll
 C:\Users\Huang Enyu\Downloads\Huang Enyu_S10274277E_PRG Assignment 2 (1)\PRG Assignment 2\bin\Debug\net8.0\specialoffers.csv
+C:\Users\Huang Enyu\Downloads\PRG Assignment 2\bin\Debug\net8.0\specialoffers.csv
