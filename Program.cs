@@ -12,6 +12,12 @@ using System.Linq;
    Partner Name:   -
 */
 
+
+
+// restaurants: RestaurantId -> Restaurant object
+// menusByRestaurant: RestaurantId -> Menu object (default menu per restaurant)
+// customersByEmail: CustomerEmail -> Customer object
+// ordersById: OrderId -> Order object
 Dictionary<string, Restaurant> restaurants = new();
 Dictionary<string, Menu> menusByRestaurant = new();
 Dictionary<string, Customer> customersByEmail = new();
@@ -19,6 +25,8 @@ Dictionary<int, Order> ordersById = new();
 
 Console.WriteLine("Welcome to the Gruberoo Food Delivery System");
 
+// BASIC FEATURE 1 & 2: Load data from CSV files 
+// PickFirstExisting lets the program work even if the "Copy" version of a file is used.
 
 string restaurantsFile = PickFirstExisting("restaurants.csv");
 string foodItemsFile = PickFirstExisting("fooditems.csv", "fooditems - Copy.csv");
@@ -26,20 +34,31 @@ string customersFile = PickFirstExisting("customers.csv");
 string ordersFile = PickFirstExisting("orders.csv", "orders - Copy.csv");
 string offersFile = PickFirstExisting("specialoffers.csv");
 
+// BASIC FEATURE 1: Load restaurants (and create default menu per restaurant)
 int rCount = LoadRestaurants(restaurants, menusByRestaurant, restaurantsFile);
+
+// ADDITIONAL FEATURE: Load special offers and attach them to each Restaurant
 int sCount = LoadSpecialOffers(restaurants, offersFile);
 if (File.Exists(offersFile))
     Console.WriteLine($"{sCount} special offers loaded!");
+
+// BASIC FEATURE 1: Load food items and place them under the correct restaurant menu
 int fCount = LoadFoodItems(restaurants, menusByRestaurant, foodItemsFile);
 
+// BASIC FEATURE 2: Load customers
 int cCount = LoadCustomers(customersByEmail, customersFile);
+
+// BASIC FEATURE 2: Load orders (and rebuild their ordered items list from CSV)
 int oCount = LoadOrders(ordersById, restaurants, menusByRestaurant, customersByEmail, ordersFile);
 
+// Summary of loaded data
 Console.WriteLine($"{rCount} restaurants loaded!");
 Console.WriteLine($"{fCount} food items loaded!");
 Console.WriteLine($"{cCount} customers loaded!");
 Console.WriteLine($"{oCount} orders loaded!");
 
+// === Main Menu Loop ===
+// User can repeatedly select features until Exit is chosen.
 while (true)
 {
     Console.WriteLine("\n===== Gruberoo Food Delivery System =====");
@@ -50,6 +69,7 @@ while (true)
     Console.WriteLine("0. Exit");
     Console.Write("Enter your choice: ");
 
+    // Input validation: only accept 0..4
     int choice = ReadIntRange(0, 4);
 
     if (choice == 0)
@@ -60,25 +80,28 @@ while (true)
 
     switch (choice)
     {
-
+        // BASIC FEATURE 3
         case 1:
             ListRestaurantsAndMenuItems(restaurants);
             break;
 
+        // BASIC FEATURE 4
         case 2:
             ListAllOrders(ordersById, customersByEmail, restaurants);
             break;
-
+        // BASIC FEATURE 5 (+ additional feature inside: special offer)
         case 3:
             CreateNewOrder(ordersById, restaurants, menusByRestaurant, customersByEmail, ordersFile);
             break;
-
+        // ADVANCED FEATURE (a)
         case 4:
             BulkProcessPendingOrdersForToday(restaurants,ordersById, ordersFile);
             break;
     }
 }
-
+// BASIC FEAUTURE 1: Load restaurant.csv
+// Creates Restaurant objects
+// Creates one default Menu per restaurant and stores in menusByRestaurant 
 int LoadRestaurants(Dictionary<string, Restaurant> restaurants,
                     Dictionary<string, Menu> menusByRestaurant,
                     string filePath)
@@ -94,7 +117,7 @@ int LoadRestaurants(Dictionary<string, Restaurant> restaurants,
     try
     {
         using StreamReader sr = new(filePath);
-        _ = sr.ReadLine(); 
+        _ = sr.ReadLine();  // skip header row 
 
         while (!sr.EndOfStream)
         {
@@ -108,16 +131,19 @@ int LoadRestaurants(Dictionary<string, Restaurant> restaurants,
             string restName = p[1].Trim();
             string restEmail = p[2].Trim();
 
+            // Basic validation to prevent creating invalid objects
             if (string.IsNullOrWhiteSpace(restId) ||
                 string.IsNullOrWhiteSpace(restName) ||
                 string.IsNullOrWhiteSpace(restEmail))
                 continue;
 
+            // Avoid duplicates
             if (restaurants.ContainsKey(restId)) continue;
 
             Restaurant r = new Restaurant(restId, restName, restEmail);
             restaurants[restId] = r;
 
+            // Create a default menu for reastaurant (so food items can be added)
             Menu m = new Menu($"M_{restId}", "Main Menu");
             r.AddMenu(m);
             menusByRestaurant[restId] = m;
@@ -133,6 +159,9 @@ int LoadRestaurants(Dictionary<string, Restaurant> restaurants,
     return loaded;
 }
 
+//BASIC FEATURE 1: Load fooditems.csv
+//Create FoodItem objects
+//Add them into the correct restaurant's Menu
 int LoadFoodItems(Dictionary<string, Restaurant> restaurants,
                   Dictionary<string, Menu> menusByRestaurant,
                   string filePath)
@@ -148,7 +177,7 @@ int LoadFoodItems(Dictionary<string, Restaurant> restaurants,
     try
     {
         using StreamReader sr = new(filePath);
-        _ = sr.ReadLine(); 
+        _ = sr.ReadLine();  // skip header row
 
         while (!sr.EndOfStream)
         {
@@ -163,12 +192,13 @@ int LoadFoodItems(Dictionary<string, Restaurant> restaurants,
             string itemDesc = p[2].Trim();
             string priceStr = p[3].Trim();
 
+            // Ensure restaurant/menu exists before adding items
             if (!restaurants.ContainsKey(restId) || !menusByRestaurant.ContainsKey(restId))
                 continue;
 
             if (string.IsNullOrWhiteSpace(itemName) || string.IsNullOrWhiteSpace(itemDesc))
                 continue;
-
+            // Price validation
             if (!double.TryParse(priceStr, NumberStyles.Any, CultureInfo.InvariantCulture, out double price) || price < 0)
                 continue;
 
@@ -184,6 +214,9 @@ int LoadFoodItems(Dictionary<string, Restaurant> restaurants,
     return loaded;
 }
 
+
+// Basic Feature 2: Load customers.csv
+// Creates Customer objects stored in customersByEmail
 int LoadCustomers(Dictionary<string, Customer> customersByEmail, string filePath)
 {
     if (string.IsNullOrWhiteSpace(filePath) || !File.Exists(filePath))
@@ -197,7 +230,7 @@ int LoadCustomers(Dictionary<string, Customer> customersByEmail, string filePath
     try
     {
         using StreamReader sr = new(filePath);
-        _ = sr.ReadLine(); 
+        _ = sr.ReadLine(); // skip header row
 
         while (!sr.EndOfStream)
         {
@@ -209,10 +242,10 @@ int LoadCustomers(Dictionary<string, Customer> customersByEmail, string filePath
 
             string name = p[0].Trim();
             string email = p[1].Trim();
-
+            // Basic validation for customer data
             if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(email)) continue;
             if (!IsValidEmail(email)) continue;
-
+            // Avoid duplicates
             if (customersByEmail.ContainsKey(email)) continue;
 
             customersByEmail[email] = new Customer(email, name);
@@ -227,6 +260,10 @@ int LoadCustomers(Dictionary<string, Customer> customersByEmail, string filePath
     return loaded;
 }
 
+//BASIC FEATURE 2: Load orders.csv
+// Creates Order Objects
+// Rebuilds ordered items list from the Items field in CSV
+// Enqueues orders into Restaurant queue and adds to Customer order list 
 int LoadOrders(Dictionary<int, Order> ordersById,
                Dictionary<string, Restaurant> restaurants,
                Dictionary<string, Menu> menusByRestaurant,
@@ -244,8 +281,8 @@ int LoadOrders(Dictionary<int, Order> ordersById,
     try
     {
         using StreamReader sr = new(filePath);
-        _ = sr.ReadLine(); 
-      
+        _ = sr.ReadLine(); // skip header row
+
         while (!sr.EndOfStream)
         {
             string line = sr.ReadLine() ?? "";
@@ -265,12 +302,13 @@ int LoadOrders(Dictionary<int, Order> ordersById,
             string totalStr = p[7].Trim();
             string status = p[8].Trim();
             string itemsStr = p[9].Trim();
-
+            // Validate that referenced customer and restaurant exist
             if (ordersById.ContainsKey(orderId)) continue;
             if (!customersByEmail.ContainsKey(custEmail)) continue;
             if (!restaurants.ContainsKey(restId) || !menusByRestaurant.ContainsKey(restId)) continue;
-            if (string.IsNullOrWhiteSpace(address)) continue;
 
+            if (string.IsNullOrWhiteSpace(address)) continue;
+            // Parse delivery date and time
             if (!DateTime.TryParseExact(deliveryDateStr, "dd/MM/yyyy", CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime dDate))
                 continue;
 
@@ -278,15 +316,16 @@ int LoadOrders(Dictionary<int, Order> ordersById,
                 continue;
 
             DateTime deliveryDt = dDate.Date.Add(dTime.TimeOfDay);
-
+            // Parse created datetime; if invalid, default to now
             if (!DateTime.TryParseExact(createdStr, "dd/MM/yyyy HH:mm", CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime createdDt))
                 createdDt = DateTime.Now;
-
+            // Create order object
             Order o = new Order(orderId, custEmail, restId, createdDt, deliveryDt, address);
+            // Load status (default to Pending if blank)
             o.OrderStatus = string.IsNullOrWhiteSpace(status) ? "Pending" : status;
-
+            // Rebuild ordered items from the CSV Items string
             BuildOrderedItemsFromString(o, menusByRestaurant[restId], itemsStr);
-
+            // If Items is empty, fall back to using TotalAmount from CSV
             if (o.GetOrderedFoodItems().Count == 0 &&
                 double.TryParse(totalStr, NumberStyles.Any, CultureInfo.InvariantCulture, out double fileTotal) &&
                 fileTotal >= 0)
@@ -294,10 +333,11 @@ int LoadOrders(Dictionary<int, Order> ordersById,
             {
                 o.SetTotalFromFile(fileTotal);
             }
-
+            
+            // Add order into restaurant queue and customer order list
             restaurants[restId].EnqueueOrder(o);
             customersByEmail[custEmail].AddOrder(o);
-
+            // Track in dictionary for listing and saving
             ordersById[orderId] = o;
             loaded++;
         }
@@ -310,12 +350,16 @@ int LoadOrders(Dictionary<int, Order> ordersById,
     return loaded;
 
 }
+
+//ADDITIONAL FEATURE: Load specialoffers.csv
+//Attaches SpecialOffer objects to each Restaurant
+//These offers are shown during CreateNewOrder and can affect OrderTotal
 int LoadSpecialOffers(Dictionary<string, Restaurant> restaurants, string filePath)
 {
     if (string.IsNullOrWhiteSpace(filePath) || !File.Exists(filePath))
         return 0;
 
-
+    // Build a lookup by RestaurantName to match your specialoffers.csv format
     var byName = restaurants.Values.ToDictionary(
         r => r.RestaurantName.Trim(),
         r => r,
@@ -327,7 +371,8 @@ int LoadSpecialOffers(Dictionary<string, Restaurant> restaurants, string filePat
     try
     {
         using StreamReader sr = new(filePath);
-        _ = sr.ReadLine(); // header
+        _ = sr.ReadLine();// skip header row
+
 
         while (!sr.EndOfStream)
         {
@@ -341,10 +386,12 @@ int LoadSpecialOffers(Dictionary<string, Restaurant> restaurants, string filePat
             string code = p[1].Trim();
             string desc = p[2].Trim();
             string discStr = p[3].Trim();
-
+            // Only attach offer if the restaurant exists
             if (!byName.TryGetValue(restName, out var rest))
                 continue;
-
+            // Discount parsing:
+            // - "-" means no % discount (used for offers like Free Delivery)
+            // - otherwise parse the number (e.g., 10 means 10% off)
             double discount = 0;
             if (discStr != "-" &&
                 !double.TryParse(discStr, NumberStyles.Any, CultureInfo.InvariantCulture, out discount))
@@ -358,7 +405,7 @@ int LoadSpecialOffers(Dictionary<string, Restaurant> restaurants, string filePat
 
     return loaded;
 }
-
+//BASIC FEATURE 3: List all restaurants and their menu items
 void ListRestaurantsAndMenuItems(Dictionary<string, Restaurant> restaurants)
 {
     if (restaurants.Count == 0)
@@ -377,6 +424,7 @@ void ListRestaurantsAndMenuItems(Dictionary<string, Restaurant> restaurants)
     }
 }
 
+//BASIC FEATURE 4: List all orders in a formatted table
 void ListAllOrders(Dictionary<int, Order> ordersById,
                    Dictionary<string, Customer> customersByEmail,
                    Dictionary<string, Restaurant> restaurants)
@@ -390,7 +438,7 @@ void ListAllOrders(Dictionary<int, Order> ordersById,
     Console.WriteLine("\nAll Orders");
     Console.WriteLine("==========");
 
-    
+    // Column widths for alignment in console output
     const int W_ID = 10;
     const int W_CUST = 12;
     const int W_REST = 14;
@@ -398,7 +446,7 @@ void ListAllOrders(Dictionary<int, Order> ordersById,
     const int W_AMT = 8;      
     const int W_STATUS = 10;
 
- 
+    // Header row
     Console.WriteLine(
         $"{"Order ID",-W_ID} " +
         $"{"Customer",-W_CUST} " +
@@ -408,7 +456,7 @@ void ListAllOrders(Dictionary<int, Order> ordersById,
         $"{"Status",-W_STATUS}"
     );
 
-  
+    // Divider row (same width as header)
     Console.WriteLine(
         $"{new string('-', W_ID),-W_ID} " +
         $"{new string('-', W_CUST),-W_CUST} " +
@@ -420,20 +468,21 @@ void ListAllOrders(Dictionary<int, Order> ordersById,
 
     foreach (Order o in ordersById.Values.OrderBy(x => x.OrderId))
     {
+        // Map customer email to customer name for display
         string custName = customersByEmail.TryGetValue(o.CustomerEmail, out var c)
             ? c.CustomerName
             : o.CustomerEmail;
-
+        // Map restaurant ID to restaurant name for display
         string restName = restaurants.TryGetValue(o.RestaurantId, out var r)
             ? r.RestaurantName
             : o.RestaurantId;
 
         string deliveryDT = o.DeliveryDateTime.ToString("dd/MM/yyyy HH:mm");
 
-      
+        // Format amount with currency symbol
         string amount = "$" + o.OrderTotal.ToString("0.00");
 
-
+        // Trim long strings to keep alignment
         custName = TrimTo(custName, W_CUST);
         restName = TrimTo(restName, W_REST);
 
@@ -448,6 +497,13 @@ void ListAllOrders(Dictionary<int, Order> ordersById,
     }
 }
 
+//BASIC FEATURE 5: Create a new order
+// Includes:
+// - Selecting items + quantity
+// - One special request (applied to items)
+// - ADDITIONAL FEATURE: apply special offer (discount or free delivery)
+// - Payment confirmation + method
+// - Save order to orders.csv
 void CreateNewOrder(Dictionary<int, Order> ordersById,
                     Dictionary<string, Restaurant> restaurants,
                     Dictionary<string, Menu> menusByRestaurant,
@@ -456,7 +512,7 @@ void CreateNewOrder(Dictionary<int, Order> ordersById,
 {
     Console.WriteLine("\nCreate New Order");
     Console.WriteLine("================");
-
+    // Step 1: Validate customer email
     string custEmail;
     while (true)
     {
@@ -473,7 +529,7 @@ void CreateNewOrder(Dictionary<int, Order> ordersById,
         }
         break;
     }
-
+    //  Step 2: Validate restaurant ID 
     string restId;
     while (true)
     {
@@ -490,7 +546,7 @@ void CreateNewOrder(Dictionary<int, Order> ordersById,
         }
         break;
     }
-
+    //  Step 3: Delivery date input 
     DateTime deliveryDate;
     while (true)
     {
@@ -502,7 +558,7 @@ void CreateNewOrder(Dictionary<int, Order> ordersById,
         }
         break;
     }
-
+    //  Step 4: Delivery time input 
     DateTime deliveryTime;
     while (true)
     {
@@ -514,20 +570,26 @@ void CreateNewOrder(Dictionary<int, Order> ordersById,
         }
         break;
     }
-
+    // Combine date + time into a single DateTime
     DateTime deliveryDt = deliveryDate.Date.Add(deliveryTime.TimeOfDay);
+    // Business rule: delivery cannot be in the past
     if (deliveryDt < DateTime.Now)
     {
         Console.WriteLine("Delivery date/time cannot be in the past. Order cancelled.");
         return;
     }
-
+    //  Step 5: Delivery address input 
     string address = ReadNonEmpty("Enter Delivery Address: ");
+    Console.WriteLine();
 
+
+    // Generate new Order ID (sequential: max + 1; default start at 1001)
     int newOrderId = (ordersById.Count == 0) ? 1001 : ordersById.Keys.Max() + 1;
 
+    // Create order object
     Order order = new Order(newOrderId, custEmail, restId, DateTime.Now, deliveryDt, address);
 
+    // Retrieve menu items for selected restaurant
     Menu menu = menusByRestaurant[restId];
     List<FoodItem> items = menu.GetFoodItems().ToList();
 
@@ -537,10 +599,11 @@ void CreateNewOrder(Dictionary<int, Order> ordersById,
         return;
     }
 
+    // Display available food items (user selects by number)
     Console.WriteLine("Available Food Items:");
     for (int i = 0; i < items.Count; i++)
         Console.WriteLine($"{i + 1}. {items[i].ItemName} - ${items[i].ItemPrice:F2}");
-
+    //  Step 6: Select items and quantities (repeat until user enters 0) 
     while (true)
     {
         Console.Write("Enter item number (0 to finish): ");
@@ -563,19 +626,32 @@ void CreateNewOrder(Dictionary<int, Order> ordersById,
         }
 
         FoodItem chosen = items[itemNo - 1];
-        order.AddOrderedFoodItem(new OrderedFoodItem(chosen, qty));
+        // Copy food item so customisation for this order does not affect the menu item
+        FoodItem customisedCopy = chosen.CopyForOrder("");
+
+        order.AddOrderedFoodItem(new OrderedFoodItem(customisedCopy, qty));
     }
 
+    // Must select at least one item
     if (order.GetOrderedFoodItems().Count == 0)
     {
         Console.WriteLine("No items selected. Order cancelled.");
         return;
     }
 
+    // --- Step 7: One special request (applied to all ordered items)
+    string customiseRequest = "";
     string sr = ReadYesNo("Add special request? [Y/N]: ");
     if (sr == "Y")
-        order.SpecialRequest = ReadNonEmpty("Enter special request: ");
-
+    {
+        customiseRequest = ReadNonEmpty("Enter special request: ");
+    }
+   
+    foreach (var oi in order.GetOrderedFoodItems())
+    {
+        oi.FoodItem.SetCustomise(customiseRequest);
+    }
+    //ADDITIONAL FEATURE: Apply Special Offer (discount or free delivery) 
     Restaurant chosenRestaurant = restaurants[restId];
     var offers = chosenRestaurant.GetSpecialOffers();
 
@@ -587,6 +663,7 @@ void CreateNewOrder(Dictionary<int, Order> ordersById,
             Console.WriteLine("Available Special Offers:");
             foreach (var off in offers)
             {
+                // Display discount text (or show that there is no % discount)
                 string discText = off.Discount > 0
                     ? $"{off.Discount:0.##}% off"
                     : "No % discount";
@@ -594,6 +671,7 @@ void CreateNewOrder(Dictionary<int, Order> ordersById,
                 Console.WriteLine($"- {off.OfferCode}: {off.OfferDesc} ({discText})");
             }
 
+            // Validate entered offer code
             while (true)
             {
                 string code = ReadNonEmpty("Enter Offer Code: ").ToUpperInvariant();
@@ -606,17 +684,19 @@ void CreateNewOrder(Dictionary<int, Order> ordersById,
                     Console.WriteLine("Invalid offer code.");
                     continue;
                 }
-
+                // Apply offer to order (recalculates total)
                 order.ApplySpecialOffer(selected);
                 Console.WriteLine($"Offer applied: {selected.OfferCode}");
                 break;
             }
         }
     }
+    Console.WriteLine();
 
-
+    // Ensure latest total is calculated (after items + offer)
     order.CalculateOrderTotal();
 
+    //Display total breakdown 
     double rawItemsTotal = order.GetOrderedFoodItems().Sum(x => x.SubTotal);
     double deliveryFee = order.FreeDeliveryApplied ? 0.0 : Order.DeliveryFee;
     double discountedItemsTotal = order.OrderTotal - deliveryFee;
@@ -636,17 +716,16 @@ void CreateNewOrder(Dictionary<int, Order> ordersById,
         );
     }
 
-
-
-
-
+    //Step 8: Proceed to payment? 
     string pay = ReadYesNo("Proceed to payment? [Y/N]: ");
     if (pay == "N")
     {
         Console.WriteLine("Payment not done. Order cancelled (not saved).");
         return;
     }
+    Console.WriteLine();
 
+    //Step 9: Choose payment method 
     string method;
     while (true)
     {
@@ -657,25 +736,33 @@ void CreateNewOrder(Dictionary<int, Order> ordersById,
         if (method is "CC" or "PP" or "CD") break;
         Console.WriteLine("Invalid payment method.");
     }
+    Console.WriteLine();
 
+    // Update order payment/status fields
     order.PaymentMethod = method;
     order.IsPaid = true;
     order.OrderStatus = "Pending";
 
-
+    // Add into restaurant queue and customer order list
     restaurants[restId].EnqueueOrder(order);
     customersByEmail[custEmail].AddOrder(order);
 
+    // Track in orders dictionary
     ordersById[order.OrderId] = order;
 
-
+    // Persist into orders CSV (append)
     AppendOrderToCsv(ordersFilePath, order);
 
     Console.WriteLine($"Order {order.OrderId} created successfully! Status: {order.OrderStatus}");
 }
 
 
-// ADVANCED FEATURE (a): Bulk processing of Pending orders for TODAY
+// ADVANCED FEATURE (a) – Design interpretation:
+// Only Pending orders with delivery date = TODAY are processed.
+// Pending orders for tomorrow or future dates are intentionally ignored.
+// Alternative interpretation would process all Pending orders,
+// but this implementation applies the 1-hour rule only to same-day deliveries.
+
 
 void BulkProcessPendingOrdersForToday(
     Dictionary<string, Restaurant> restaurants,
@@ -702,6 +789,7 @@ void BulkProcessPendingOrdersForToday(
 
     List<Order> pendingToday = new();
 
+    // Scan through each restaurant's order queue to find Pending orders for today
     foreach (Restaurant r in restaurants.Values)
     {
         Queue<Order> q = r.GetOrderQueue();
@@ -723,37 +811,44 @@ void BulkProcessPendingOrdersForToday(
 
     int processed = 0, preparing = 0, rejected = 0;
 
+    // Process each pending order based on time to delivery
     foreach (Order o in pendingToday.OrderBy(x => x.DeliveryDateTime))
     {
         TimeSpan timeToDelivery = o.DeliveryDateTime - now;
 
         if (timeToDelivery < TimeSpan.FromHours(1))
         {
+            // Less than 1 hour before delivery => auto reject
             o.OrderStatus = "Rejected";
             rejected++;
         }
         else
         {
+            // Otherwise => auto prepare
             o.OrderStatus = "Preparing";
             preparing++;
         }
 
         processed++;
     }
-
+    // Summary stats required by advanced feature
     Console.WriteLine("\nSummary Statistics");
     Console.WriteLine("------------------");
     Console.WriteLine($"Orders processed: {processed}");
     Console.WriteLine($"Preparing orders: {preparing}");
     Console.WriteLine($"Rejected orders : {rejected}");
 
+    // Percentage processed against all orders in the system
     double percentage = ordersById.Count == 0 ? 0 : (processed * 100.0 / ordersById.Count);
     Console.WriteLine($"Auto-processed percentage (processed / all orders): {percentage:F2}%");
 
+    // Save updated statuses back into orders CSV (overwrite)
     SaveAllOrdersToCsv(ordersFilePath, ordersById);
     Console.WriteLine("\nUpdated order statuses saved to CSV.");
 }
 
+// Helper: Rewrite the entire orders CSV from ordersById
+// Used to persist bulk-processing status updates
 void SaveAllOrdersToCsv(string filePath, Dictionary<int, Order> ordersById)
 {
     if (string.IsNullOrWhiteSpace(filePath))
@@ -773,6 +868,7 @@ void SaveAllOrdersToCsv(string filePath, Dictionary<int, Order> ordersById)
         string created = o.OrderDateTime.ToString("dd/MM/yyyy HH:mm");
         string total = o.OrderTotal.ToString(CultureInfo.InvariantCulture);
 
+        // Items field is stored as: "ItemName, Qty|ItemName, Qty|..."
         string itemsStr = string.Join("|",
             o.GetOrderedFoodItems().Select(x => $"{x.FoodItem.ItemName}, {x.QtyOrdered}"));
 
@@ -780,6 +876,9 @@ void SaveAllOrdersToCsv(string filePath, Dictionary<int, Order> ordersById)
     }
 }
 
+
+
+// Helper: Choose the first file that exists from candidates
 string PickFirstExisting(params string[] candidates)
 {
     foreach (var f in candidates)
@@ -788,10 +887,15 @@ string PickFirstExisting(params string[] candidates)
     return candidates.Length > 0 ? candidates[0] : "";
 }
 
+
+
+// Helper: Convert Items string from CSV into OrderedFoodItems in the Order
+// Format expected: "ItemName, Qty|ItemName, Qty|..."
 void BuildOrderedItemsFromString(Order order, Menu menu, string itemsStr)
 {
     if (string.IsNullOrWhiteSpace(itemsStr)) return;
 
+    // Lookup menu items by name (case-insensitive) so we can rebuild ordered items
     var lookup = menu.GetFoodItems()
                      .GroupBy(x => x.ItemName, StringComparer.OrdinalIgnoreCase)
                      .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
@@ -814,6 +918,8 @@ void BuildOrderedItemsFromString(Order order, Menu menu, string itemsStr)
     }
 }
 
+// Helper: Append a newly created order into the orders CSV
+// (Used in Basic Feature 5 when order is created successfully)
 void AppendOrderToCsv(string filePath, Order order)
 {
     string deliveryDate = order.DeliveryDateTime.ToString("dd/MM/yyyy");
@@ -824,6 +930,7 @@ void AppendOrderToCsv(string filePath, Order order)
     string itemsStr = string.Join("|",
         order.GetOrderedFoodItems().Select(x => $"{x.FoodItem.ItemName}, {x.QtyOrdered}"));
 
+    // If file doesn't exist or empty, write header first
     bool needHeader = !File.Exists(filePath) || new FileInfo(filePath).Length == 0;
 
     using StreamWriter sw = new(filePath, append: true);
@@ -834,6 +941,8 @@ void AppendOrderToCsv(string filePath, Order order)
     sw.WriteLine($"{order.OrderId},{EscapeCsv(order.CustomerEmail)},{EscapeCsv(order.RestaurantId)},{deliveryDate},{deliveryTime},{EscapeCsv(order.DeliveryAddress)},{created},{total},{EscapeCsv(order.OrderStatus)},{EscapeCsv(itemsStr)}");
 }
 
+
+// Helper: Escape CSV fields that contain commas/quotes/newlines
 string EscapeCsv(string s)
 {
     s ??= "";
@@ -842,6 +951,7 @@ string EscapeCsv(string s)
     return s;
 }
 
+// Helper: CSV line splitter that supports quoted commas
 string[] SplitCsvLine(string line)
 {
     List<string> fields = new();
@@ -879,12 +989,14 @@ string[] SplitCsvLine(string line)
     return fields.ToArray();
 }
 
+// Helper: Basic email validation used for input checking
 bool IsValidEmail(string email)
 {
     if (string.IsNullOrWhiteSpace(email)) return false;
     return email.Contains('@') && email.Contains('.') && !email.Contains(' ');
 }
 
+// Helper: Read non-empty input from console
 string ReadNonEmpty(string prompt)
 {
     while (true)
@@ -896,6 +1008,7 @@ string ReadNonEmpty(string prompt)
     }
 }
 
+// Helper: Read Y/N input only
 string ReadYesNo(string prompt)
 {
     while (true)
@@ -907,6 +1020,7 @@ string ReadYesNo(string prompt)
     }
 }
 
+// Helper: Read an integer (re-prompts until valid)
 int ReadInt()
 {
     while (true)
@@ -917,6 +1031,8 @@ int ReadInt()
     }
 }
 
+// Helper: Read an integer within a range [min..max]
+// Used for menu selection validation
 int ReadIntRange(int min, int max)
 {
     while (true)
@@ -926,7 +1042,7 @@ int ReadIntRange(int min, int max)
         Console.Write($"Enter a number between {min} and {max}: ");
     }
 }
-
+// Helper: Trim long strings for table formatting (adds ellipsis)
 string TrimTo(string s, int maxLen)
 {
     if (string.IsNullOrEmpty(s)) return s;
