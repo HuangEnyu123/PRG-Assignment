@@ -4,7 +4,12 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-    namespace S10274277E_Assignment
+/* Student Number: S10274277E
+   Student Name:   Huang Enyu (Solo)
+   Partner Name:   -
+*/
+
+namespace S10274277E_Assignment
     {
         public class FoodItem
         {

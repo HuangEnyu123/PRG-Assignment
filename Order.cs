@@ -4,6 +4,11 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
+/* Student Number: S10274277E
+   Student Name:   Huang Enyu (Solo)
+   Partner Name:   -
+*/
+
 namespace S10274277E_Assignment
 {
     public class Order
