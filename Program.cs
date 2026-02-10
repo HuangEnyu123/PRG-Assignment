@@ -815,6 +815,13 @@ void BulkProcessPendingOrdersForToday(
     foreach (Order o in pendingToday.OrderBy(x => x.DeliveryDateTime))
     {
         TimeSpan timeToDelivery = o.DeliveryDateTime - now;
+        // Business rule for Advanced Feature (a):
+        // If the delivery time is LESS THAN 1 hour from now,
+        // the order is automatically REJECTED because there is
+        // insufficient time to prepare and deliver the order.
+        // Otherwise (>= 1 hour), the order status is set to PREPARING.
+
+
 
         if (timeToDelivery < TimeSpan.FromHours(1))
         {
@@ -831,6 +838,9 @@ void BulkProcessPendingOrdersForToday(
 
         processed++;
     }
+
+
+
     // Summary stats required by advanced feature
     Console.WriteLine("\nSummary Statistics");
     Console.WriteLine("------------------");
